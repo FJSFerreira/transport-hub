@@ -1,0 +1,39 @@
+@if (stop(); as currentStop) {
+  <aside class="departures-panel" aria-live="polite" aria-label="Próximas partidas">
+    <div class="departures-panel-header">
+      <div>
+        <p class="departures-eyebrow">PARAGEM {{ currentStop.id }}</p>
+        <h2>{{ currentStop.name }}</h2>
+      </div>
+      <button type="button" class="close-panel" aria-label="Fechar partidas" (click)="close.emit()">×</button>
+    </div>
+    <div class="departures-panel-subhead">
+      <strong>Próximas partidas</strong>
+      <span>{{ departures().length }} partidas disponíveis</span>
+    </div>
+    @if (loading()) {
+      <div class="departures-state" role="status">
+        <span class="panel-loader"></span>
+        <p>A carregar partidas…</p>
+      </div>
+    } @else if (error()) {
+      <div class="departures-state" role="alert">
+        <p>{{ error() }}</p>
+        <button type="button" class="panel-retry" (click)="retry.emit()">Tentar novamente</button>
+      </div>
+    } @else if (!departures().length) {
+      <div class="departures-state">
+        <p>Não há partidas futuras disponíveis.</p>
+      </div>
+    } @else {
+      <div class="departures-list">
+        @for (departure of departures(); track departure.timestamp + (departure.arrival.line_id || '')) {
+          <app-departure-item
+            [departure]="departure"
+            [lineStyles]="lineStyles()"
+          />
+        }
+      </div>
+    }
+  </aside>
+}

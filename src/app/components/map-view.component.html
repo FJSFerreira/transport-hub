@@ -1,0 +1,13 @@
+<div class="map-frame">
+  <div id="stops-map" role="application" aria-label="Mapa interativo das paragens"></div>
+  <div class="map-badge">
+    <span class="map-badge-dot"></span>
+    <span>{{ visibleCount() | number }} paragens visíveis</span>
+  </div>
+  @if (vehicleError()) {
+    <p class="vehicle-error" role="status">{{ vehicleError() }}</p>
+  }
+  @if (locationError()) {
+    <p class="location-error" role="alert">{{ locationError() }}</p>
+  }
+</div>

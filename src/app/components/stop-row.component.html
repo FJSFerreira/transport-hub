@@ -1,0 +1,19 @@
+<button class="stop-row" type="button" (click)="stopSelected.emit(stop())">
+  <span class="stop-name-cell">
+    <span class="stop-pin" aria-hidden="true">
+      <svg viewBox="0 0 20 20">
+        <path d="M16 8.3c0 4.4-6 9-6 9s-6-4.6-6-9a6 6 0 1 1 12 0Z" />
+        <circle cx="10" cy="8" r="2" />
+      </svg>
+    </span>
+    <span class="stop-name-copy">
+      <strong>{{ stop().name }}</strong>
+      <small>Paragem {{ stop().id }}</small>
+    </span>
+  </span>
+  <span class="line-count">
+    <strong>{{ distance() }}</strong>
+    <small>{{ stop().line_ids?.length || 0 }} linhas</small>
+  </span>
+  <span class="row-arrow" aria-hidden="true">↗</span>
+</button>

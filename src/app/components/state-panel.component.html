@@ -1,0 +1,14 @@
+<div class="state-panel" [class.error-panel]="kind() === 'error'" role="alert">
+  @if (kind() === 'loading') {
+    <span class="loader" role="status"></span>
+  } @else {
+    <span class="state-symbol">{{ kind() === 'error' ? '!' : '⌕' }}</span>
+  }
+  <h2>{{ title() }}</h2>
+  <p>{{ message() }}</p>
+  @if (kind() !== 'loading' && actionLabel()) {
+    <button type="button" [class.retry-button]="kind() === 'error'" (click)="action.emit()">
+      {{ actionLabel() }}
+    </button>
+  }
+</div>

@@ -1,0 +1,29 @@
+<div class="list-frame">
+  @if (!stops().length) {
+    <app-state-panel
+      kind="empty"
+      title="Nenhuma paragem encontrada"
+      message="Experimente pesquisar por outro nome ou localidade."
+    />
+  } @else {
+    <div class="list-head">
+      <span>PARAGEM</span>
+      <span>DISTÂNCIA</span>
+      <span></span>
+    </div>
+    <div class="stop-list" (scroll)="scroll.emit($event)">
+      @for (stop of stops(); track stop.id) {
+        <app-stop-row
+          [stop]="stop"
+          [distance]="formatDistance(stop)"
+          (stopSelected)="stopSelected.emit($event)"
+        />
+      }
+      @if (stops().length < totalCount()) {
+        <div class="infinite-scroll-status" role="status">Desloque para carregar mais paragens</div>
+      } @else {
+        <div class="infinite-scroll-status" role="status">Todas as paragens carregadas</div>
+      }
+    </div>
+  }
+</div>

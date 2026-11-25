@@ -1,0 +1,66 @@
+<div class="app-shell">
+  <main>
+    <section class="workspace" aria-label="Explorar paragens">
+      <app-search-toolbar
+        [search]="search()"
+        [view]="view()"
+        [locating]="locating()"
+        [hasSelectedStop]="!!selectedStop()"
+        [stopsVisible]="stopsVisible()"
+        [vehiclesVisible]="vehiclesVisible()"
+        (searchChange)="setSearch($event)"
+        (clearSearch)="clearSearch()"
+        (viewChange)="setView($event)"
+        (locate)="centerOnCurrentLocation()"
+        (stopsVisibleChange)="setStopsVisible($event)"
+        (vehiclesVisibleChange)="setVehiclesVisible($event)"
+      />
+
+      <div class="workspace-view">
+        @if (error()) {
+          <app-state-panel
+            kind="error"
+            title="Não foi possível carregar as paragens"
+            [message]="error()"
+            actionLabel="Tentar novamente"
+            (action)="retry()"
+          />
+        } @else if (loading()) {
+          <app-state-panel
+            kind="loading"
+            title="A preparar o mapa"
+            message="A carregar as paragens da rede metropolitana."
+          />
+        } @else if (view() === 'map') {
+          <div class="map-layout" [class.with-departures]="selectedStop()">
+            <app-map-view
+              [visibleCount]="filteredStops().length"
+              [vehicleError]="vehicleError()"
+              [locationError]="locationError()"
+            />
+            @if (selectedStop()) {
+              <app-departures-panel
+                [stop]="selectedStop()"
+                [departures]="departures()"
+                [loading]="arrivalsLoading()"
+                [error]="arrivalsError()"
+                [lineStyles]="lineStyles()"
+                (close)="closeStopPanel()"
+                (retry)="retryArrivals()"
+              />
+            }
+          </div>
+        } @else {
+          <app-stops-list
+            [stops]="visibleStops()"
+            [totalCount]="filteredStops().length"
+            [distanceFormatter]="formatDistance.bind(this)"
+            (stopSelected)="showStop($event)"
+            (scroll)="loadMoreStops($event)"
+          />
+        }
+      </div>
+    </section>
+
+  </main>
+</div>

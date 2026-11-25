@@ -1,0 +1,98 @@
+<div class="workspace-controls" [class.with-departures]="hasSelectedStop()">
+  <div class="workspace-toolbar">
+    <div class="search-bar">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="10.8" cy="10.8" r="6.8" />
+        <path d="m16 16 4.2 4.2" />
+      </svg>
+      <input
+        type="search"
+        [value]="search()"
+        (input)="searchChange.emit($event)"
+        placeholder="Pesquisar paragem, localidade ou concelho…"
+        aria-label="Pesquisar paragens"
+      />
+      @if (view() === 'map') {
+        <button
+          type="button"
+          class="locate-control"
+          aria-label="Centrar mapa na minha localização"
+          title="Centrar na minha localização"
+          [disabled]="locating()"
+          (click)="locate.emit()"
+        >
+          @if (locating()) {
+            <span class="location-spinner" aria-hidden="true"></span>
+          } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.5" />
+              <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
+            </svg>
+          }
+        </button>
+      }
+      @if (search()) {
+        <button class="clear-search" type="button" aria-label="Limpar pesquisa" (click)="clearSearch.emit()">
+          Limpar
+        </button>
+      }
+      <span class="search-shortcut" aria-hidden="true">⌕</span>
+    </div>
+    <div class="view-switch" role="tablist" aria-label="Modo de visualização">
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="view() === 'map'"
+        [class.active]="view() === 'map'"
+        (click)="viewChange.emit('map')"
+      >
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <path d="m3 5 4-2 6 2 4-2v12l-4 2-6-2-4 2V5Z" />
+          <path d="M7 3v12m6-10v12" />
+        </svg>
+        Mapa
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="view() === 'list'"
+        [class.active]="view() === 'list'"
+        (click)="viewChange.emit('list')"
+      >
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M7 5h10M7 10h10M7 15h10" />
+          <circle cx="3.5" cy="5" r=".7" />
+          <circle cx="3.5" cy="10" r=".7" />
+          <circle cx="3.5" cy="15" r=".7" />
+        </svg>
+        Lista
+      </button>
+    </div>
+  </div>
+  @if (view() === 'map') {
+    <div class="map-layer-toggles" aria-label="Camadas do mapa">
+      <button
+        type="button"
+        class="map-layer-toggle"
+        [class.active]="stopsVisible()"
+        role="switch"
+        [attr.aria-checked]="stopsVisible()"
+        (click)="stopsVisibleChange.emit(!stopsVisible())"
+      >
+        <span class="layer-toggle-dot stops-toggle-dot" aria-hidden="true"></span>
+        Paragens
+      </button>
+      <button
+        type="button"
+        class="map-layer-toggle"
+        [class.active]="vehiclesVisible()"
+        role="switch"
+        [attr.aria-checked]="vehiclesVisible()"
+        (click)="vehiclesVisibleChange.emit(!vehiclesVisible())"
+      >
+        <span class="layer-toggle-dot vehicles-toggle-dot" aria-hidden="true"></span>
+        Autocarros
+      </button>
+    </div>
+  }
+</div>

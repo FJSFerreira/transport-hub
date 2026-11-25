@@ -1,0 +1,26 @@
+<article class="departure-item">
+  <strong
+    class="departure-line"
+    [style.background-color]="lineStyle().backgroundColor"
+    [style.color]="lineStyle().color"
+  >
+    {{ formatLineId() }}
+  </strong>
+  <div class="departure-details">
+    <strong>{{ departure().arrival.headsign || 'Destino não indicado' }}</strong>
+  </div>
+  <time
+    [class.estimated-arrival]="isEstimatedArrival()"
+    [attr.aria-label]="departureAriaLabel()"
+  >
+    <span class="departure-time-primary">
+      @if (isEstimatedArrival()) {
+        <span class="realtime-indicator" aria-hidden="true"></span>
+      }
+      {{ formatDeparture() }}
+    </span>
+    @if (scheduledDepartureTime(); as scheduledTime) {
+      <span class="scheduled-departure">{{ scheduledTime }}</span>
+    }
+  </time>
+</article>

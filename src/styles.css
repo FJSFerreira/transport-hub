@@ -1,0 +1,306 @@
+@import 'leaflet/dist/leaflet.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
+:root {
+  color-scheme: light;
+  --green: #2f7650;
+  --green-dark: #285f42;
+  --ink: #26372d;
+  --muted: #88938b;
+  --line: #e8ebe6;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f6f7f4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
+.stop-marker {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+}
+
+.stop-marker span {
+  width: 12px;
+  height: 12px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--stop-marker-background, rgb(255, 221, 0));
+  box-shadow: 0 1px 5px #1e482c75;
+}
+
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background: rgb(255, 221, 64);
+}
+
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+  color: black;
+  background: rgb(255, 221, 0);
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.departures-panel {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #edf0ec;
+  background: #fff;
+}
+
+.departures-panel-header,
+.departures-panel-subhead {
+  flex: 0 0 auto;
+}
+
+.departures-panel-header {
+  padding: 20px 17px 15px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid #edf0ec;
+}
+
+.departures-eyebrow {
+  margin: 0 0 7px;
+  color: #8a968e;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+}
+
+.departures-panel-header h2 {
+  margin: 0;
+  color: #26372d;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.departures-location {
+  margin: 5px 0 0;
+  color: #87938a;
+  font-size: 9px;
+}
+
+.close-panel {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e8ece8;
+  border-radius: 7px;
+  color: #728078;
+  background: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.departures-panel-subhead {
+  padding: 10px 17px 8px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.departures-panel-subhead strong {
+  color: #3a4b40;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.departures-panel-subhead span {
+  color: #9aa39c;
+  font-size: 8px;
+}
+
+.departures-list {
+  min-height: 0;
+  height: 0;
+  flex: 1 1 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 17px 14px;
+  scrollbar-color: #dce3dc transparent;
+  scrollbar-width: thin;
+}
+
+.departure-item {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #f0f2ef;
+}
+
+.departure-line {
+  padding: 5px 4px;
+  border-radius: 5px;
+  color: #2f7650;
+  background: #edf4ef;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.departure-details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.departure-details strong {
+  overflow: hidden;
+  color: #58665d;
+  font-size: 12px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.departure-item time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #26372d;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.departure-time-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scheduled-departure {
+  color: #87938a;
+  font-size: 9px;
+  font-weight: 500;
+  text-decoration: line-through;
+}
+
+.departure-item time.estimated-arrival {
+  color: #2f7650;
+}
+
+.departure-item time .realtime-indicator {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.departures-state {
+  min-height: 120px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #87938a;
+  text-align: center;
+}
+
+.vehicle-marker-icon {
+  border: 0;
+  background: transparent;
+}
+
+.vehicle-marker {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+}
+
+.vehicle-marker-symbol {
+  width: 54px;
+  height: 54px;
+  stroke: #fff;
+  stroke-width: 1.25px;
+  filter: drop-shadow(0 1px 2px #1e312066);
+}
+
+.vehicle-marker-label {
+  stroke: none;
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.departures-state p {
+  margin: 0;
+  font-size: 10px;
+}
+
+.panel-loader {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5eee7;
+  border-top-color: #34815a;
+  border-radius: 50%;
+  animation: panel-spin 700ms linear infinite;
+}
+
+.panel-retry {
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 6px;
+  color: #2f7650;
+  background: #edf4ef;
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+}
+
+@keyframes panel-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 700px) {
+  .departures-panel {
+    min-height: 0;
+    max-height: none;
+    border-top: 1px solid #edf0ec;
+    border-left: 0;
+  }
+}
