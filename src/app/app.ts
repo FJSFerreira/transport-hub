@@ -25,6 +25,7 @@ import { StatePanelComponent } from './components/state-panel.component';
 const VEHICLE_REFRESH_INTERVAL = 60_000;
 const VEHICLE_MIN_ZOOM = 15;
 const INITIAL_MAP_CENTER = { latitude: 38.7223, longitude: -9.1393 };
+let preservedMapView: { latitude: number; longitude: number; zoom: number } | null = null;
 const DEFAULT_LINE_STYLE: LineStyle = {
   backgroundColor: '#edf4ef',
   color: '#2f7650',
@@ -156,7 +157,9 @@ export class App implements OnDestroy {
   private vehicleRequest?: Subscription;
   private vehicleRefreshTimer?: ReturnType<typeof setInterval>;
   private routeSubscription?: Subscription;
+  private routeOperatorId: string | null = null;
   private routeStopId: string | null = null;
+  private mapFocusFrame?: number;
   private lastMapCenter = { ...INITIAL_MAP_CENTER };
   private locationRequested = false;
   private initialMapLocationRequested = false;
@@ -216,8 +219,9 @@ export class App implements OnDestroy {
 
   constructor() {
     this.routeSubscription = this.route.paramMap.subscribe((params) => {
+      this.routeOperatorId = params.get('operator') ?? params.get('operatorId');
+      this.routeStopId = params.get('stop') ?? params.get('stopId');
       const routeView = params.get('view');
-      this.routeStopId = params.get('stopId');
       if (routeView === 'map' || routeView === 'list') {
         this.applyRouteView(routeView);
       }
@@ -298,7 +302,8 @@ export class App implements OnDestroy {
             if (
               !this.initialMapLocationRequested &&
               this.view() === 'map' &&
-              !this.routeStopId
+              !this.routeStopId &&
+              !preservedMapView
             ) {
               this.initialMapLocationRequested = true;
               this.centerOnCurrentLocation();
@@ -325,7 +330,11 @@ export class App implements OnDestroy {
     const container = document.getElementById('stops-map');
     if (!container || !container.clientWidth || !container.clientHeight) return;
 
-    this.map = L.map(container, { zoomControl: false }).setView([38.7223, -9.1393], 10);
+    const initialCenter = preservedMapView
+      ? [preservedMapView.latitude, preservedMapView.longitude] as [number, number]
+      : [INITIAL_MAP_CENTER.latitude, INITIAL_MAP_CENTER.longitude] as [number, number];
+    const initialZoom = preservedMapView?.zoom ?? 10;
+    this.map = L.map(container, { zoomControl: false }).setView(initialCenter, initialZoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
@@ -333,7 +342,14 @@ export class App implements OnDestroy {
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
     this.map.on('moveend', () => {
       const center = this.map?.getCenter();
-      if (center) this.lastMapCenter = { latitude: center.lat, longitude: center.lng };
+      if (center) {
+        this.lastMapCenter = { latitude: center.lat, longitude: center.lng };
+        preservedMapView = {
+          latitude: center.lat,
+          longitude: center.lng,
+          zoom: this.map?.getZoom() ?? 10,
+        };
+      }
     });
     this.map.on('zoomend', () => this.updateVehicleLayerVisibility());
     this.markerLayer = L.markerClusterGroup({
@@ -376,6 +392,9 @@ export class App implements OnDestroy {
   ngOnDestroy(): void {
     clearTimeout(this.markerUpdateTimer);
     this.arrivalsRequest?.unsubscribe();
+    if (this.mapFocusFrame !== undefined) {
+      cancelAnimationFrame(this.mapFocusFrame);
+    }
     this.routeSubscription?.unsubscribe();
     this.stopVehicleUpdates();
     this.map?.remove();
@@ -586,12 +605,16 @@ export class App implements OnDestroy {
   }
 
   setView(view: 'map' | 'list'): void {
-    const stopId = this.selectedStop()?.id;
-    void this.router.navigate(stopId ? [view, stopId] : [view]);
+    this.applyRouteView(view);
+    if (!this.selectedStop()) {
+      void this.router.navigate([view]);
+    }
   }
 
   showStop(stop: Stop): void {
-    void this.router.navigate(['map', stop.id]);
+    const operatorId = stop.operatorIds?.[0] ?? OPERATOR_CONFIGS[0]?.id;
+    if (!operatorId) return;
+    void this.router.navigate([operatorId, stop.id]);
   }
 
   private applyRouteView(view: 'map' | 'list'): void {
@@ -615,8 +638,6 @@ export class App implements OnDestroy {
     requestAnimationFrame(() => {
       this.initializeMap();
       this.map?.invalidateSize();
-      const stop = this.selectedStop();
-      if (stop) this.focusStop(stop);
     });
   }
 
@@ -682,22 +703,6 @@ export class App implements OnDestroy {
     const stop = this.stops().find((item) => item.id === this.routeStopId);
     if (!stop || this.selectedStop()?.id === stop.id) return;
     this.selectStop(stop);
-    if (this.view() === 'map') this.focusStop(stop);
-  }
-
-  private focusStop(stop: Stop): void {
-    requestAnimationFrame(() => {
-      this.initializeMap();
-      const marker = this.markers.get(stop.id);
-      if (marker && this.map && this.markerLayer) {
-        if (!this.markerLayer.hasLayer(marker)) {
-          this.markerLayer.addLayer(marker);
-        }
-        this.markerLayer.zoomToShowLayer(marker, () => {
-          this.map?.flyTo(marker.getLatLng(), 16, { duration: 0.6 });
-        });
-      }
-    });
   }
 
   selectStop(stop: Stop): void {
@@ -707,7 +712,24 @@ export class App implements OnDestroy {
   }
 
   closeStopPanel(): void {
-    void this.router.navigate(['map']);
+    if (this.mapFocusFrame !== undefined) {
+      cancelAnimationFrame(this.mapFocusFrame);
+      this.mapFocusFrame = undefined;
+    }
+    if (this.map) {
+      const center = this.map.getCenter();
+      preservedMapView = {
+        latitude: center.lat,
+        longitude: center.lng,
+        zoom: this.map.getZoom(),
+      };
+    }
+    this.arrivalsRequest?.unsubscribe();
+    this.selectedStop.set(null);
+    this.departures.set([]);
+    this.arrivalsLoading.set(false);
+    this.arrivalsError.set('');
+    void this.router.navigate([this.view()]);
   }
 
   retryArrivals(): void {
