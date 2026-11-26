@@ -4,6 +4,7 @@ import type { OperatorService } from './operator-service.interface';
 export interface OperatorConfig {
   id: string;
   name: string;
-  stopColor: string;
+  stopBackgroundColor: string;
+  stopForegroundColor: string;
   service: Type<OperatorService>;
 }

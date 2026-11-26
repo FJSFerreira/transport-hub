@@ -13,8 +13,9 @@ import type { VehicleLineDetails } from './interfaces/vehicle-line-details.inter
 import type { VehiclePosition } from './interfaces/vehicle-position.interface';
 import {
   getStopMarkerBackground,
+  getStopMarkerForeground,
   OPERATOR_CONFIGS,
-} from './operator-stop-colors';
+} from './operator-config';
 import { InvalidTransitApiResponseError } from './services/cmet-service';
 import { SearchToolbarComponent } from './components/search-toolbar.component';
 import { MapViewComponent } from './components/map-view.component';
@@ -858,10 +859,18 @@ export class App implements OnDestroy {
           Math.abs(stop.longitude) <= 180,
       )
       .map((stop) => {
+        const backgroundColor = getStopMarkerBackground(stop.operatorIds);
+        const foregroundColor = getStopMarkerForeground(stop.operatorIds);
+        const markerStyles = [
+          backgroundColor ? `--stop-marker-background: ${backgroundColor}` : undefined,
+          foregroundColor ? `--stop-marker-foreground: ${foregroundColor}` : undefined,
+        ]
+          .filter((style): style is string => style !== undefined)
+          .join('; ');
         const marker = L.marker([stop.latitude, stop.longitude], {
           icon: L.divIcon({
             className: 'stop-marker',
-            html: `<span style="--stop-marker-background: ${getStopMarkerBackground(stop.operatorIds)}"></span>`,
+            html: `<span${markerStyles ? ` style="${markerStyles}"` : ''}></span>`,
             iconSize: [18, 18],
             iconAnchor: [9, 9],
           }),

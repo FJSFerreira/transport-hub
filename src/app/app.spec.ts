@@ -13,10 +13,9 @@ import {
 import { routes } from './app.routes';
 import { DepartureItemComponent } from './components/departure-item.component';
 import {
-  CMET_OPERATOR_ID,
-  CMET_MARKER_COLOR,
   getStopMarkerBackground,
-} from './operator-stop-colors';
+  getStopMarkerForeground,
+} from './operator-config';
 import { CmetService } from './services/cmet-service';
 
 describe('App', () => {
@@ -31,6 +30,20 @@ describe('App', () => {
   });
 
   describe('selectUpcomingArrivals', () => {
+    it('uses configured stop-marker background and foreground colors', () => {
+      expect(getStopMarkerBackground(['cmet'])).toBe('rgb(255, 221, 0)');
+      expect(getStopMarkerForeground(['cmet'])).toBe('white');
+      expect(getStopMarkerBackground(undefined)).toBeUndefined();
+      expect(getStopMarkerBackground(['unknown-operator'])).toBeUndefined();
+      expect(getStopMarkerForeground(['unknown-operator'])).toBeUndefined();
+      expect(
+        getStopMarkerBackground(['operator-a', 'operator-b', 'operator-a'], {
+          'operator-a': '#112233',
+          'operator-b': '#445566',
+        }),
+      ).toBe('conic-gradient(#112233 0% 50%, #445566 50% 100%)');
+    });
+
     it('hides future trips terminating at the selected stop', () => {
       const currentStop = {
         id: '180291',
@@ -68,21 +81,11 @@ describe('App', () => {
       )).toBe(false);
     });
 
-    it('uses configured operator colors and combines colors for shared stops', () => {
-      expect(getStopMarkerBackground([CMET_OPERATOR_ID])).toBe(CMET_MARKER_COLOR);
-      expect(
-        getStopMarkerBackground(['operator-a', 'operator-b'], {
-          'operator-a': '#112233',
-          'operator-b': '#445566',
-        }),
-      ).toBe('conic-gradient(#112233 0% 50%, #445566 50% 100%)');
-    });
-
     it('merges stops from operators while preserving each operator and line', () => {
       expect(
         mergeOperatorStops([
           {
-            operatorId: CMET_OPERATOR_ID,
+            operatorId: 'cmet',
             stops: [{
               id: 'shared',
               name: 'Shared stop',
@@ -109,7 +112,7 @@ describe('App', () => {
           latitude: 38.9,
           longitude: -9,
           line_ids: ['1001', '2001'],
-          operatorIds: [CMET_OPERATOR_ID, 'other-operator'],
+          operatorIds: ['cmet', 'other-operator'],
         },
       ]);
     });

@@ -1,6 +1,6 @@
 import { Routes, UrlMatchResult, UrlSegment } from '@angular/router';
 import { App } from './app';
-import { OPERATOR_CONFIGS } from './operator-stop-colors';
+import { OPERATOR_CONFIGS } from './operator-config';
 
 function viewMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   if (segments.length !== 1) return null;
