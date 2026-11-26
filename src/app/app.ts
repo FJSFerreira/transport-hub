@@ -5,6 +5,7 @@ import * as L from 'leaflet';
 import 'leaflet.markercluster';
 import type { Arrival } from './interfaces/arrival.interface';
 import type { Coordinates } from './interfaces/coordinates.interface';
+import type { Departure } from './interfaces/departure.interface';
 import type { LineRecord } from './interfaces/line-record.interface';
 import type { LineStyle } from './interfaces/line-style.interface';
 import type { Pattern } from './interfaces/pattern.interface';
@@ -12,6 +13,7 @@ import type { Stop } from './interfaces/stop.interface';
 import type { VehicleLineDetails } from './interfaces/vehicle-line-details.interface';
 import type { VehiclePosition } from './interfaces/vehicle-position.interface';
 import {
+  getOperatorLineStyle,
   getStopMarkerBackground,
   getStopMarkerForeground,
   OPERATOR_CONFIGS,
@@ -183,7 +185,7 @@ export class App implements OnDestroy {
   readonly locationError = signal('');
   readonly vehicleError = signal('');
   readonly selectedStop = signal<Stop | null>(null);
-  readonly departures = signal<{ arrival: Arrival; timestamp: number }[]>([]);
+  readonly departures = signal<Departure[]>([]);
   readonly arrivalsLoading = signal(false);
   readonly arrivalsError = signal('');
   readonly filteredStops = computed(() => {
@@ -255,7 +257,9 @@ export class App implements OnDestroy {
             const style = this.toLineStyle(line);
             if (style) {
               for (const key of [line.id, line.short_name]) {
-                if (key !== undefined && key !== null) styles.set(String(key), style);
+                if (key !== undefined && key !== null) {
+                  styles.set(this.operatorLineStyleKey(operatorId, String(key)), style);
+                }
               }
             }
 
@@ -357,6 +361,33 @@ export class App implements OnDestroy {
       chunkedLoading: true,
       maxClusterRadius: 54,
       showCoverageOnHover: false,
+      iconCreateFunction: (cluster) => {
+        const operatorIds = [
+          ...new Set(
+            cluster
+              .getAllChildMarkers()
+              .flatMap((marker) => {
+                const stopMarkerOptions = marker.options as L.MarkerOptions & {
+                  stopOperatorIds?: readonly string[];
+                };
+                return stopMarkerOptions.stopOperatorIds ?? [];
+              }),
+          ),
+        ];
+        const backgroundColor =
+          getStopMarkerBackground(operatorIds) ?? 'rgb(255, 221, 0)';
+        const foregroundColor = getStopMarkerForeground(operatorIds) ?? 'black';
+        const count = cluster.getChildCount();
+        const sizeClass =
+          count < 10 ? 'marker-cluster-small'
+            : count < 100 ? 'marker-cluster-medium'
+              : 'marker-cluster-large';
+        return L.divIcon({
+          className: `marker-cluster ${sizeClass}`,
+          html: `<div style="--stop-marker-background: ${backgroundColor}; --stop-marker-foreground: ${foregroundColor}"><span>${count}</span></div>`,
+          iconSize: L.point(40, 40),
+        });
+      },
     });
     if (this.stopsVisible()) this.markerLayer.addTo(this.map);
     this.vehicleLayer = L.markerClusterGroup({
@@ -488,7 +519,7 @@ export class App implements OnDestroy {
 
   private vehicleIcon(vehicle: VehiclePosition): L.DivIcon {
     const lineNumber = this.vehicleLineNumber(vehicle);
-    const style = this.lineStyle(lineNumber);
+    const style = this.lineStyle(vehicle.operatorId, lineNumber);
     const escapedLineNumber = lineNumber.replace(/[&<>"']/g, (character) => ({
       '&': '&amp;',
       '<': '&lt;',
@@ -749,8 +780,20 @@ export class App implements OnDestroy {
     return lineId?.replace(/^\[[^\]]+\]/, '') || '—';
   }
 
-  lineStyle(lineId?: string): LineStyle {
-    return this.lineStyles().get(this.formatLineId(lineId)) ?? DEFAULT_LINE_STYLE;
+  lineStyle(operatorId: string | undefined, lineId?: string): LineStyle {
+    if (!operatorId || !lineId) {
+      return getOperatorLineStyle(operatorId) ?? DEFAULT_LINE_STYLE;
+    }
+    return (
+      this.lineStyles().get(this.operatorLineStyleKey(operatorId, lineId)) ??
+      this.lineStyles().get(this.operatorLineStyleKey(operatorId, this.formatLineId(lineId))) ??
+      getOperatorLineStyle(operatorId) ??
+      DEFAULT_LINE_STYLE
+    );
+  }
+
+  private operatorLineStyleKey(operatorId: string, lineId: string): string {
+    return `${operatorId}:${lineId}`;
   }
 
   isEstimatedArrival(arrival: Arrival, timestamp: number): boolean {
@@ -782,7 +825,10 @@ export class App implements OnDestroy {
     const now = Math.floor(Date.now() / 1000);
     this.arrivalsRequest = forkJoin(
       this.operatorServices.map(({ id, service }) =>
-        service.getArrivals(stop.id).pipe(
+        (stop.operatorIds?.length && !stop.operatorIds.includes(id)
+          ? of([])
+          : service.getArrivals(stop.id)
+        ).pipe(
           map((arrivals) =>
             selectUpcomingArrivals(arrivals, now).map((departure) => ({
               ...departure,
@@ -830,7 +876,6 @@ export class App implements OnDestroy {
             operatorDepartures
               .flat()
               .sort((a, b) => a.timestamp - b.timestamp)
-              .map(({ operatorId: _operatorId, ...departure }) => departure),
           ),
         ),
       ),
@@ -867,7 +912,9 @@ export class App implements OnDestroy {
         ]
           .filter((style): style is string => style !== undefined)
           .join('; ');
-        const marker = L.marker([stop.latitude, stop.longitude], {
+        const markerOptions: L.MarkerOptions & {
+          stopOperatorIds?: readonly string[];
+        } = {
           icon: L.divIcon({
             className: 'stop-marker',
             html: `<span${markerStyles ? ` style="${markerStyles}"` : ''}></span>`,
@@ -875,7 +922,9 @@ export class App implements OnDestroy {
             iconAnchor: [9, 9],
           }),
           title: stop.name,
-        });
+          stopOperatorIds: stop.operatorIds,
+        };
+        const marker = L.marker([stop.latitude, stop.longitude], markerOptions);
         marker.on('click', () => this.showStop(stop));
         this.markers.set(stop.id, marker);
         return marker;

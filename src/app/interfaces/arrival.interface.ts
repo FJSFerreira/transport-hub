@@ -1,4 +1,5 @@
 export interface Arrival {
+  cancelled?: boolean;
   line_id?: string;
   headsign?: string;
   pattern_id?: string | null;

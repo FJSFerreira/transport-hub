@@ -51,14 +51,14 @@ input {
 .marker-cluster-small,
 .marker-cluster-medium,
 .marker-cluster-large {
-  background: rgb(255, 221, 64);
+  background: transparent;
 }
 
 .marker-cluster-small div,
 .marker-cluster-medium div,
 .marker-cluster-large div {
-  color: black;
-  background: rgb(255, 221, 0);
+  color: var(--stop-marker-foreground, black);
+  background: var(--stop-marker-background, rgb(255, 221, 0));
   font-family: inherit;
   font-weight: 600;
 }
@@ -217,6 +217,12 @@ input {
 
 .departure-item time.estimated-arrival {
   color: #2f7650;
+}
+
+.departure-details strong.cancelled,
+.departure-item time.cancelled {
+  color: #b42318;
+  text-decoration: line-through;
 }
 
 .departure-item time .realtime-indicator {

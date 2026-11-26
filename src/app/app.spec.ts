@@ -15,8 +15,10 @@ import { DepartureItemComponent } from './components/departure-item.component';
 import {
   getStopMarkerBackground,
   getStopMarkerForeground,
+  OPERATOR_CONFIGS,
 } from './operator-config';
 import { CmetService } from './services/cmet-service';
+import { CpService } from './services/cp-service';
 
 describe('App', () => {
   let http: HttpTestingController;
@@ -27,6 +29,106 @@ describe('App', () => {
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes)],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
+  });
+
+  it('loads CP stations through the configured operator service', () => {
+    const cpConfig = OPERATOR_CONFIGS.find(({ id }) => id === 'cp');
+    expect(cpConfig).toMatchObject({
+      name: 'Comboios de Portugal',
+      stopBackgroundColor: 'rgb(37, 128, 59)',
+      stopForegroundColor: 'white',
+      service: CpService,
+    });
+
+    const service = TestBed.inject(CpService);
+    let stops: unknown;
+    service.getStops().subscribe((result) => (stops = result));
+    http.expectOne('/api/cp/stations').flush({
+      data: [
+        {
+          stationId: 123,
+          stationName: 'Lisboa',
+          latitude: '38.7139',
+          longitude: '-9.1394',
+        },
+        { stationId: 'invalid', stationName: 'Invalid', latitude: null, longitude: null },
+      ],
+    });
+    expect(stops).toEqual([
+      {
+        id: '123',
+        name: 'Lisboa',
+        latitude: 38.7139,
+        longitude: -9.1394,
+      },
+    ]);
+    service.getLines().subscribe((lines) => expect(lines).toEqual([]));
+    service.getVehiclePositions().subscribe((positions) => expect(positions).toEqual([]));
+  });
+
+  it('loads CP departures for the current date and time', () => {
+    const now = new Date();
+    const expectedDate = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    const expectedStart =
+      `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    let arrivals: unknown;
+    TestBed.inject(CpService)
+      .getArrivals('94-31278')
+      .subscribe((result) => (arrivals = result));
+
+    const request = http.expectOne((candidate) =>
+      candidate.url.match(
+        /^\/api\/cp\/stations\/94-31278\/timetable\/\d{4}-\d{2}-\d{2}$/,
+      ) !== null,
+    );
+    expect(request.request.params.get('view')).toBe('DEPARTURES');
+    expect(request.request.params.get('start')).toBe(expectedStart);
+    const requestDate = request.request.url.split('/').pop();
+    expect(requestDate).toBe(expectedDate);
+    request.flush({
+      stationStops: [
+        {
+          trainNumber: 4411,
+          trainService: { code: 'R', designation: 'Regional' },
+          trainDestination: { code: '94-40154', designation: 'Tomar' },
+          arrivalTime: '10:11',
+          departureTime: '10:11',
+          ETA: '10:13',
+          ETD: '10:13',
+          supression: { code: 'CANCELLED', designation: 'Suprimido' },
+        },
+      ],
+    });
+
+    expect(arrivals).toEqual([
+      {
+        line_id: 'R',
+        headsign: 'Tomar',
+        cancelled: true,
+        scheduled_arrival: '10:11',
+        scheduled_arrival_unix: Math.floor(
+          new Date(`${requestDate}T10:11:00`).getTime() / 1000,
+        ),
+        estimated_arrival: '10:13',
+        estimated_arrival_unix: Math.floor(
+          new Date(`${requestDate}T10:13:00`).getTime() / 1000,
+        ),
+      },
+    ]);
+  });
+
+  it('rejects invalid CP stations responses', () => {
+    let error: unknown;
+    TestBed.inject(CpService).getStations().subscribe({
+      error: (responseError: unknown) => (error = responseError),
+    });
+    http.expectOne('/api/cp/stations').flush({ unexpected: [] });
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain('invalid response');
   });
 
   describe('selectUpcomingArrivals', () => {
@@ -251,6 +353,7 @@ describe('App', () => {
         line_ids: ['2331', '2337'],
       },
     ]);
+    http.expectOne('/api/cp/stations').flush([]);
     http.expectOne('https://api.carrismetropolitana.pt/v2/lines').flush([
       {
         id: '2331',
@@ -276,9 +379,13 @@ describe('App', () => {
       latitude: 38.961093,
       longitude: -8.988657,
     });
-    expect(fixture.componentInstance.lineStyle('[BNA17]2331')).toEqual({
+    expect(fixture.componentInstance.lineStyle('cmet', '[BNA17]2331')).toEqual({
       backgroundColor: '#C61D23',
       color: '#FFFFFF',
+    });
+    expect(fixture.componentInstance.lineStyle('cp', '2331')).toEqual({
+      backgroundColor: 'rgb(37, 128, 59)',
+      color: 'white',
     });
     const estimated = Date.UTC(2026, 0, 1, 12, 30) / 1000;
     expect(
@@ -305,8 +412,37 @@ describe('App', () => {
   it('displays normalized line numbers and omits the scheduled-time label', () => {
     const fixture = TestBed.createComponent(DepartureItemComponent);
     fixture.componentRef.setInput('departure', {
+      operatorId: 'cp',
       arrival: {
         line_id: '[LA77N]1721_0',
+        estimated_arrival_unix: 1_000,
+        scheduled_arrival_unix: 1_200,
+      },
+      timestamp: 1_000,
+    });
+    fixture.componentRef.setInput('lineStyles', new Map([
+      ['cmet:1721', { backgroundColor: '#112233', color: '#ffffff' }],
+      ['cp:1721', { backgroundColor: '#445566', color: '#ffffff' }],
+    ]));
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.departure-line')?.textContent?.trim()).toBe('1721');
+    expect(fixture.componentInstance.lineStyle()).toEqual({
+      backgroundColor: '#445566',
+      color: '#ffffff',
+    });
+    expect(element.querySelector('.scheduled-departure')?.textContent).not.toContain('programada');
+  });
+
+  it('marks a cancelled departure time and destination', () => {
+    const fixture = TestBed.createComponent(DepartureItemComponent);
+    fixture.componentRef.setInput('departure', {
+      operatorId: 'cp',
+      arrival: {
+        line_id: '4411',
+        headsign: 'Tomar',
+        cancelled: true,
         estimated_arrival_unix: 1_000,
         scheduled_arrival_unix: 1_200,
       },
@@ -315,7 +451,10 @@ describe('App', () => {
     fixture.detectChanges();
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('.departure-line')?.textContent?.trim()).toBe('1721');
-    expect(element.querySelector('.scheduled-departure')?.textContent).not.toContain('programada');
+    expect(element.querySelector('.departure-details strong')?.classList).toContain('cancelled');
+    expect(element.querySelector('time')?.classList).toContain('cancelled');
+    expect(element.querySelector('.realtime-indicator')).toBeNull();
+    expect(fixture.componentInstance.scheduledDepartureTime()).toBeNull();
+    expect(fixture.componentInstance.departureAriaLabel()).toContain('partida cancelada');
   });
 });

@@ -1,6 +1,7 @@
 import { Component, input } from '@angular/core';
 import type { Departure } from '../interfaces/departure.interface';
 import type { LineStyle } from '../interfaces/line-style.interface';
+import { getOperatorLineStyle } from '../operator-config';
 
 @Component({
   selector: 'app-departure-item',
@@ -19,13 +20,24 @@ export class DepartureItemComponent {
   }
 
   lineStyle(): LineStyle {
-    const lineId = this.departure().arrival.line_id?.trim();
-    if (!lineId) return { backgroundColor: '#edf4ef', color: '#2f7650' };
+    const { operatorId, arrival } = this.departure();
+    const lineId = arrival.line_id?.trim();
+    if (!lineId) {
+      return getOperatorLineStyle(operatorId) ?? {
+        backgroundColor: '#edf4ef',
+        color: '#2f7650',
+      };
+    }
     const normalizedLineId = this.normalizedLineId(lineId);
-    return this.lineStyles().get(lineId) ??
-      this.lineStyles().get(normalizedLineId) ??
-      this.lineStyles().get(this.formatLineId()) ??
-      { backgroundColor: '#edf4ef', color: '#2f7650' };
+    const operatorStyle = operatorId
+      ? this.lineStyles().get(`${operatorId}:${lineId}`) ??
+        this.lineStyles().get(`${operatorId}:${normalizedLineId}`) ??
+        this.lineStyles().get(`${operatorId}:${this.formatLineId()}`)
+      : undefined;
+    return operatorStyle ?? getOperatorLineStyle(operatorId) ?? {
+      backgroundColor: '#edf4ef',
+      color: '#2f7650',
+    };
   }
 
   private normalizedLineId(lineId: string): string {
@@ -41,7 +53,7 @@ export class DepartureItemComponent {
 
   scheduledDepartureTime(): string | null {
     const { arrival, timestamp } = this.departure();
-    if (arrival.estimated_arrival_unix !== timestamp) return null;
+    if (arrival.cancelled || arrival.estimated_arrival_unix !== timestamp) return null;
     const scheduled = arrival.scheduled_arrival_unix;
     return typeof scheduled === 'number'
       ? new Date(scheduled * 1000).toLocaleTimeString('pt-PT', {
@@ -58,6 +70,7 @@ export class DepartureItemComponent {
 
   departureAriaLabel(): string {
     const time = this.formatDeparture();
+    if (this.departure().arrival.cancelled) return `${time}, partida cancelada`;
     return this.isEstimatedArrival()
       ? `${time}, estimado`
       : `${time}, horário previsto`;

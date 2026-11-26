@@ -1,5 +1,7 @@
 import type { OperatorConfig } from './interfaces/operator-config.interface';
+import type { LineStyle } from './interfaces/line-style.interface';
 import { CmetService } from './services/cmet-service';
+import { CpService } from './services/cp-service';
 
 export const OPERATOR_CONFIGS: readonly OperatorConfig[] = [
   {
@@ -9,7 +11,24 @@ export const OPERATOR_CONFIGS: readonly OperatorConfig[] = [
     stopForegroundColor: 'white',
     service: CmetService,
   },
+  {
+    id: 'cp',
+    name: 'Comboios de Portugal',
+    stopBackgroundColor: 'rgb(37, 128, 59)',
+    stopForegroundColor: 'white',
+    service: CpService,
+  },
 ];
+
+export function getOperatorLineStyle(operatorId: string | undefined): LineStyle | undefined {
+  const operator = OPERATOR_CONFIGS.find(({ id }) => id === operatorId);
+  return operator
+    ? {
+        backgroundColor: operator.stopBackgroundColor,
+        color: operator.stopForegroundColor,
+      }
+    : undefined;
+}
 
 const operatorStopBackgroundColors: Readonly<Record<string, string>> = Object.fromEntries(
   OPERATOR_CONFIGS.map(({ id, stopBackgroundColor }) => [id, stopBackgroundColor]),

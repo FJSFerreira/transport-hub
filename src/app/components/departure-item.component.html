@@ -7,14 +7,17 @@
     {{ formatLineId() }}
   </strong>
   <div class="departure-details">
-    <strong>{{ departure().arrival.headsign || 'Destino não indicado' }}</strong>
+    <strong [class.cancelled]="departure().arrival.cancelled">
+      {{ departure().arrival.headsign || 'Destino não indicado' }}
+    </strong>
   </div>
   <time
     [class.estimated-arrival]="isEstimatedArrival()"
+    [class.cancelled]="departure().arrival.cancelled"
     [attr.aria-label]="departureAriaLabel()"
   >
     <span class="departure-time-primary">
-      @if (isEstimatedArrival()) {
+      @if (isEstimatedArrival() && !departure().arrival.cancelled) {
         <span class="realtime-indicator" aria-hidden="true"></span>
       }
       {{ formatDeparture() }}
