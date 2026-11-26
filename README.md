@@ -21,9 +21,9 @@ The app needs an internet connection to load transit data and map tiles. Locatio
 
 ## Operator services
 
-Operators are registered in `src/app/operator-stop-colors.ts`. Each entry specifies an operator ID, its stop-marker color, and its service class. Services implement the `OperatorService` contract in `src/app/interfaces/operator-service.interface.ts`; the app uses the configured services to load and merge stops, lines, vehicles, and arrivals. Stops shared by multiple operators display their configured colors together.
+Operators are registered in `src/app/operator-config.ts`. Each entry specifies an operator ID, name, stop-marker background and foreground colors, and service class. Services implement the `OperatorService` contract in `src/app/interfaces/operator-service.interface.ts`; the app uses the configured services to load and merge stops, lines, vehicles, and arrivals. Stops shared by multiple operators combine their configured background colors.
 
-To add an operator, implement `OperatorService` and add it to `OPERATOR_CONFIGS` with a unique ID and stop color.
+To add an operator, implement `OperatorService` and add it to `OPERATOR_CONFIGS` with a unique ID, name, and stop-marker background and foreground colors.
 
 ## Getting started
 
